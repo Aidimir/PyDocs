@@ -5,6 +5,7 @@ from openpyxl.styles import Font
 from openpyxl.styles.borders import Border, Side
 import doctest
 
+
 class DataVac:
     """
     класс Вакансии
@@ -25,7 +26,7 @@ class DataVac:
 
 class Salary:
     """
-    класс для представления зарплаты
+    Класс для зарплаты
     """
     def __init__(self, minSalary, maxSalary, currSalary):
         """
@@ -41,6 +42,13 @@ class Salary:
     def rubleConverter(self):
         """
         метод, для конвертации средней зп в рубли
+        >>> DataVac("Web-программист", 30000, 80000, "RUR", "Ульяновск", "2022-05-31T17:32:31+0300").salary.rubleConverter()
+        55000.0
+        >>> DataVac("Web-аналитик", 30000, 80000, "KZT", "Алмата", "2022-05-31T17:32:31+0300").salary.rubleConverter()
+        7150.0
+        >>> DataVac("Web", 0, 0, "USD", "NY", "2022-05-31T17:32:31+0300").salary.rubleConverter()
+        0.0
+
         :return: средняя ЗП умноженная на курс рубля
         """
         return (self.minSalary + self.maxSalary) / 2 * self.__rubleCourse[self.currSalary]
@@ -103,16 +111,16 @@ class InputConnection:
                         dVacs.append(dv)
 
                         yearDate = int(dv.published_at[:4])
-                        rubleSal[yearDate] = self.__avg(rubleSal[yearDate], dv.salary.rubleConverter(),
+                        rubleSal[yearDate] = self.avg(rubleSal[yearDate], dv.salary.rubleConverter(),
                                                          salCount[yearDate])
                         salCount[yearDate] += 1
 
                         if (dv.name.find(jobName) != -1):
-                            rubleJob[yearDate] = self.__avg(rubleJob[yearDate], dv.salary.rubleConverter(), jobCounter[yearDate])
+                            rubleJob[yearDate] = self.avg(rubleJob[yearDate], dv.salary.rubleConverter(), jobCounter[yearDate])
                             jobCounter[yearDate] += 1
 
-        rubleSal = self.__erEmpty(self.__roundVals(rubleSal))
-        rubleJob = self.__erEmpty(self.__roundVals(rubleJob))
+        rubleSal = self.__erEmpty(self.roundVals(rubleSal))
+        rubleJob = self.__erEmpty(self.roundVals(rubleJob))
         salCount = self.__erEmpty(salCount)
         jobCounter = self.__erEmpty(jobCounter)
 
@@ -132,33 +140,48 @@ class InputConnection:
                     citiesSal[city] = vac.salary.rubleConverter()
                     citiesCount[city] = 1
             else:
-                citiesSal[city] = self.__avg(citiesSal[city], vac.salary.rubleConverter(), citiesCount[city])
+                citiesSal[city] = self.avg(citiesSal[city], vac.salary.rubleConverter(), citiesCount[city])
                 citiesCount[city] += 1
 
         summary = len(dVacs)
         for k, v in citiesCount.items():
             citiesFrac[k] = round(v / (summary / 100) / 100, 4)
 
-        citiesSal = self.__roundVals(self.__erEmpty(self.__sortCities(citiesSal)))
-        citiesFrac = self.__erEmpty(self.__sortCities(citiesFrac))
+        citiesSal = self.roundVals(self.__erEmpty(self.sortCities(citiesSal)))
+        citiesFrac = self.__erEmpty(self.sortCities(citiesFrac))
 
         print('Уровень зарплат по городам (в порядке убывания):', citiesSal)
         print('Доля вакансий по городам (в порядке убывания):', citiesFrac)
 
         return jobName, rubleSal, salCount, rubleJob, jobCounter, citiesSal, citiesFrac
 
-    def __sortCities(self, d):
+    def sortCities(self, d):
         """
         сортирует словарь
+        >>> InputConnection().sortCities({'Санкт-Петербург': 0.0888, 'Пермь': 0.021, 'Тюмень': 0.0234})
+        {'Санкт-Петербург': 0.0888, 'Тюмень': 0.0234, 'Пермь': 0.021}
+        >>> InputConnection().sortCities({'Пермь': 0.021, 'Москва': 0.1041})
+        {'Москва': 0.1041, 'Пермь': 0.021}
+        >>> InputConnection().sortCities({'Пермь': 0.000001, 'Москва': 0.1041})
+        {'Москва': 0.1041, 'Пермь': 1e-06}
+        >>> InputConnection().sortCities({'Калининград': 0.021, 'Москва': 0.1041})
+        {'Москва': 0.1041, 'Калининград': 0.021}
+
         :param d (dict): словарь городов
         :return: отсортированный словарь
         """
         return dict(sorted(d.items(), key=lambda x: x[1], reverse=True)[:10])
 
-    def __roundVals(self, d):
+    def roundVals(self, d):
         """
         :param d: словарь значений
         :return (dict): словарь округленных значений
+        >>> InputConnection().roundVals({2021: 0, 2022: 127333.33333333333})
+        {2021: 0, 2022: 127333}
+        >>> InputConnection().roundVals({2021: 0.7, 2022: 127.99999})
+        {2021: 0, 2022: 127}
+        >>> InputConnection().roundVals({2021: 0, 2022: 0})
+        {2021: 0, 2022: 0}
         """
         return dict(map(lambda x: (x[0], int(x[1])), d.items()))
 
@@ -174,9 +197,15 @@ class InputConnection:
             cd[2022] = 0
         return cd
 
-    def __avg(self, m, x, n):
+    def avg(self, m, x, n):
         """
         :return (int): возвращает среднее значение
+        >>> InputConnection().avg(54166.666666666664, 70000.0, 3)
+        58125.0
+        >>> InputConnection().avg(42500.0, 30000.0, 2)
+        38333.333333333336
+        >>> InputConnection().avg(58125.0, 42500.0, 4)
+        55000.0
         """
         return (m * n + x) / (n + 1)
 
@@ -313,3 +342,6 @@ inpConnection = InputConnection()
 report = Report()
 data = inpConnection.dataInput()
 report.generate_excel(data[:5], data[5:])
+
+if __name__ == "__main__":
+    doctest.testmod()
